@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head> 
+    <meta charset="UTF-8">
+    <title>وِصال</title>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .page { display: none; }
+        .active { display: block; }
+
+        .payment-box{
+            margin-top:20px;
+            padding:20px;
+            border:1px solid #ddd;
+            border-radius:12px;
+            background:#fff;
+        }
+
+        .payment-box input,
+        .payment-box select{
+            width: 80%;
+            max-width: 320px;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .payment-box .radio-group{
+            margin: 15px 0;
+        }
+
+        #successMessage{
+            display:none;
+            margin-top:15px;
+            color:green;
+            font-weight:bold;
+        }
+
+        #appleNote{
+            display:none;
+            margin-top:10px;
+            color:#444;
+        }
+
+        #cardFields{
+            display:none;
+            margin-top:15px;
+        }
+    </style>
+
+    <script>
+  
+        document.addEventListener('click', function (e) {
+            let textToSpeak = "";
+            
+     
+            if (e.target.tagName === 'BUTTON') {
+                textToSpeak = e.target.innerText;
+            } 
+            else if (e.target.closest('.service-item')) {
+                textToSpeak = e.target.closest('.service-item').innerText;
+            }
+
+            if (textToSpeak !== "") {
+                window.speechSynthesis.cancel(); 
+                let utterance = new SpeechSynthesisUtterance(textToSpeak);
+                utterance.lang = 'ar-SA';
+                window.speechSynthesis.speak(utterance);
+            }
+        });
+
+        function showPage(pageId){
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo(0,0);
+        }
+
+        function loginUser(){
+            let user = document.getElementById("user").value;
+            let pass = document.getElementById("pass").value;
+
+            if(user.trim() !== "" && pass.trim() !== ""){
+                showPage('disability');
+            }
+        }
+
+        function togglePaymentFields() {
+            let method = document.querySelector('input[name="payMethod"]:checked').value;
+            document.getElementById('cardFields').style.display = (method === 'card') ? 'block' : 'none';
+            document.getElementById('appleNote').style.display = (method === 'apple') ? 'block' : 'none';
+        }
+
+        function confirmBooking() {
+            document.getElementById('successMessage').style.display = 'block';
+            setTimeout(() => {
+                alert("شكراً لك، تم الحجز بنجاح!");
+                showPage('home');
+                document.getElementById('successMessage').style.display = 'none';
+            }, 1500);
+        }
+
+        function searchGuide() { alert("جاري البحث عن أقرب خدمة..."); }
+        function startGuide() { alert("بدأت عملية الإرشاد الصوتي..."); }
+
+        function processTransport(event) {
+            event.preventDefault();
+            document.getElementById('payService').innerText = "التنقل";
+            document.getElementById('payLocation').innerText = document.getElementById('transportLocation').value || "غير محدد";
+            document.getElementById('payTime').innerText = document.getElementById('transportTime').value || "غير محدد";
+            document.getElementById('payPrice').innerText = "50";
+            showPage('payment');
+        }
+
+        function goToMaintenancePayment() {
+            let device = document.getElementById("deviceInput").value;
+            let problem = document.getElementById("problemInput").value;
+
+            if(device.trim() === "" || problem.trim() === "") {
+                alert("يرجى إدخال البيانات");
+                return;
+            }
+
+            document.getElementById("r1").innerText = "جهاز: " + device;
+            document.getElementById("r2").innerText = "المشكلة: " + problem;
+            document.getElementById("r3").innerText = "طلب صيانة فنية";
+            document.getElementById("r4").innerText = "150 ريال";
+
+            showPage('payment2');
+        }
+    </script>
+</head>
+
+<body>
+
+<header class="top-bar"></header>
+<img src="ترجمه.png" class="top-icon">
+
+<div id="home" class="page active">
+    <div class="logo-section">
+        <h1>وِصالْ</h1>
+        <h2>مرحبا</h2>
+    </div>
+
+    <div class="center-content">
+        <p>
+            وِصالْ منصة رقمية صُممت لتكون جسرًا يربط ذوي الهمم بالخدمات التي تسهّل حياتهم اليومية.
+            نسعى إلى توفير حلول ذكية وميسّرة تساعد على التنقل بسهولة، والحصول على الدعم،
+            والوصول إلى الأماكن المناسبة، لنمنح المستخدم تجربة أكثر راحة واستقلالية وثقة.
+        </p>
+
+        <button class="btn-login" onclick="showPage('login')">تسجيل الدخول</button>
+    </div>
+</div>
+
+<div id="login" class="page">
+    <div class="logo-section">
+        <h1>وِصالْ</h1>
+        <h2>تسجيل الدخول</h2>
+    </div>
+
+    <div class="center-content">
+        <form class="login-form" onsubmit="event.preventDefault(); loginUser();">
+            <input id="user" type="text" placeholder="اسم المستخدم" required>
+            <input id="pass" type="password" placeholder="كلمة المرور" required>
+            <button type="submit">دخول</button>
+        </form>
+
+        <button class="btn-login" onclick="showPage('home')">رجوع</button>
+    </div>
+</div>
+
+<div id="disability" class="page">
+    <div class="logo-section">
+        <h1>اختيار نوع الإعاقة</h1>
+    </div>
+
+    <div class="center-content">
+        <div class="services-box">
+            <label class="service-item"><input type="radio" name="type"><span>إعاقة بصرية</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>إعاقة حركية</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>إعاقة سمعية</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>إعاقة ذهنية</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>صعوبات تعلم</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>التوحد</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>اضطراب النطق</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>إعاقات متعددة</span></label>
+            <label class="service-item"><input type="radio" name="type"><span>أفضل عدم الإفصاح</span></label>
+        </div>
+
+        <button class="btn-login" onclick="showPage('services')">التالي</button>
+        <button class="btn-login" onclick="showPage('login')">رجوع</button>
+    </div>
+</div>
+
+<div id="services" class="page">
+    <div class="logo-section">
+        <h1>الخدمات الرئيسية</h1>
+    </div>
+
+    <div class="center-content">
+        <div class="services-box">
+            <label class="service-item"><input type="radio" name="service"><span>التنقل</span></label>
+            <label class="service-item"><input type="radio" name="service"><span>الدعم الشخصي</span></label>
+            <label class="service-item"><input type="radio" name="service"><span>البيئة المهيأة</span></label>
+            <label class="service-item"><input type="radio" name="service"><span>الإرشاد الذكي</span></label>
+            <label class="service-item"><input type="radio" name="service"><span>الصيانة</span></label>
+            <label class="service-item"><input type="radio" name="service"><span>الطلب السريع</span></label>
+        </div>
+
+        <button class="btn-login" onclick="goService()">اختيار الخدمة</button>
+        <button class="btn-login" onclick="showPage('disability')">رجوع</button>
+    </div>
+</div>
+
+<div id="transport" class="page">
+    <div class="logo-section"><h1>التنقل</h1></div>
+    <div class="center-content">
+        <form id="transportForm" onsubmit="processTransport(event)">
+            <input id="transportLocation" placeholder="الموقع" required>
+            <input id="transportTime" type="time" required>
+            <button type="submit" class="btn-login">حجز</button>
+        </form>
+        <button class="btn-login" onclick="showPage('services')">رجوع</button>
+    </div>
+</div>
+
+<div id="payment" class="page">
+    <div class="logo-section"><h1>الدفع</h1></div>
+    <div class="center-content payment-box">
+        <h2>ملخص الطلب</h2>
+        <p>الخدمة: <span id="payService">غير محدد</span></p>
+        <p>الموقع: <span id="payLocation">غير محدد</span></p>
+        <p>الوقت: <span id="payTime">غير محدد</span></p>
+        <p>السعر: <span id="payPrice">0</span> ريال</p>
+        <h2>اختيار طريقة الدفع</h2>
+        <div class="radio-group">
+            <label><input type="radio" name="payMethod" value="card" onchange="togglePaymentFields()"> بطاقة</label>
+            <label><input type="radio" name="payMethod" value="apple" onchange="togglePaymentFields()"> Apple Pay</label>
+        </div>
+        <div id="cardFields">
+            <input type="text" placeholder="اسم حامل البطاقة">
+            <input type="text" placeholder="رقم البطاقة">
+        </div>
+        <div id="appleNote"><p>تم اختيار Apple Pay.</p></div>
+        <button class="btn-login" onclick="confirmBooking()">تأكيد الحجز</button>
+    </div>
+</div>
+
+<div id="maintenance" class="page">
+    <div class="logo-section"><h1>الصيانة</h1></div>
+    <div class="center-content">
+        <input id="deviceInput" placeholder="نوع الجهاز">
+        <textarea id="problemInput" placeholder="المشكلة"></textarea>
+        <button class="btn-login" onclick="goToMaintenancePayment()">تأكيد الصيانة</button>
+        <button class="btn-login" onclick="showPage('services')">رجوع</button>
+    </div>
+</div>
+
+<div id="order" class="page">
+    <div class="logo-section"><h1>الطلب السريع</h1></div>
+    <div class="center-content">
+        <input id="storeInput" placeholder="المتجر">
+        <input id="itemInput" placeholder="الطلب">
+        <textarea id="noteInput" placeholder="ملاحظات"></textarea>
+        <button class="btn-login" onclick="goToOrderPayment()">إرسال</button>
+        <button class="btn-login" onclick="showPage('services')">رجوع</button>
+    </div>
+</div>
+
+<div id="payment2" class="page">
+    <div class="logo-section"><h1>الدفع</h1></div>
+    <div class="center-content">
+        <p>التفاصيل: <span id="r1"></span></p>
+        <p>الطلب/المشكلة: <span id="r2"></span></p>
+        <p>ملاحظات: <span id="r3"></span></p>
+        <p>السعر: <span id="r4"></span></p>
+        <button class="btn-login" onclick="alert('تم الدفع بنجاح')">دفع</button>
+        <button class="btn-login" onclick="showPage('services')">رجوع</button>
+    </div>
+</div>
+
+<script>
+function goService(){
+    let selected = document.querySelector('input[name="service"]:checked');
+    if(!selected){ alert("اختاري خدمة أولاً"); return; }
+    let name = selected.parentElement.innerText.trim();
+
+    if(name.includes("التنقل")) showPage("transport");
+    else if(name.includes("الإرشاد")) showPage("guide");
+    else if(name.includes("الدعم")) showPage("support");
+    else if(name.includes("البيئة")) showPage("places");
+    else if(name.includes("الصيانة")) showPage("maintenance");
+    else if(name.includes("الطلب")) showPage("order");
+}
+
+function goToOrderPayment(){
+    document.getElementById("r1").innerText = "متجر: " + document.getElementById("storeInput").value;
+    document.getElementById("r2").innerText = "الطلب: " + document.getElementById("itemInput").value;
+    document.getElementById("r3").innerText = document.getElementById("noteInput").value || "-";
+    document.getElementById("r4").innerText = "30 ريال";
+    showPage("payment2");
+}
+</script>
+
+</body>
+</html>
