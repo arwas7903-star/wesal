@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>وصال — تفاصيل</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .tool-card {
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px; border-radius:var(--radius-lg);
+      background:var(--primary-bg); border:1px solid hsl(153 55% 80%);
+    }
+    .tool-icon { color:var(--primary); flex-shrink:0; }
+    .zoom-controls { display:flex; align-items:center; gap:10px; margin-inline-start:auto; }
+    .zoom-btn {
+      width:36px; height:36px; border-radius:8px;
+      border:1.5px solid var(--border); background:#fff;
+      font-weight:700; font-size:.9rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:border-color .15s;
+    }
+    .zoom-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); }
+    .zoom-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .zoom-value { font-size:.82rem; color:var(--muted); min-width:38px; text-align:center; font-family:monospace; }
+  </style>
+</head>
+<body data-page="disabilities">
+  <div id="layout-header"></div>
+  <main class="main-content">
+    <div id="page-root"></div>
+  </main>
+  <div id="layout-bottom-nav"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/translations.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    /* Hearing: green flash on any press */
+    function initHearing() {
+      function fire(target) {
+        const el = target && target.closest("button, a, [role='button'], input, select");
+        if (!el) return;
+        const prev = el.style.cssText;
+        el.style.transition      = "background-color .08s ease, box-shadow .08s ease";
+        el.style.backgroundColor = "hsl(145 55% 72%)";
+        el.style.color           = "hsl(153 60% 14%)";
+        el.style.boxShadow       = "0 0 0 3px hsl(145 55% 55% / .5)";
+        setTimeout(() => { el.style.cssText = prev; }, 400);
+      }
+      document.addEventListener("mousedown",  e => fire(e.target));
+      document.addEventListener("touchstart", e => fire(e.target), { passive: true });
+    }
+
+    /* Text zoom */
+    let zoom = 100;
+    function applyZoom() {
+      document.documentElement.style.fontSize = zoom + "%";
+      const el = document.getElementById("zoom-value");
+      if (el) el.textContent = zoom + "%";
+      const dec = document.getElementById("zoom-dec");
+      const inc = document.getElementById("zoom-inc");
+      if (dec) dec.disabled = zoom <= 80;
+      if (inc) inc.disabled = zoom >= 160;
+    }
+    function changeZoom(delta) { zoom = Math.min(160, Math.max(80, zoom + delta)); applyZoom(); }
+
+    window.addEventListener("layout-ready", async function () {
+      const root = document.getElementById("page-root");
+      const params = new URLSearchParams(location.search);
+      const id = params.get("id");
+      if (!id) { location.href = "/disabilities.html"; return; }
+
+      root.innerHTML = `<div class="skeleton" style="height:36px;width:200px;margin-bottom:12px"></div>
+        <div class="skeleton" style="height:40px;width:320px;margin-bottom:10px"></div>
+        <div class="skeleton" style="height:100px;margin-bottom:20px"></div>`;
+
+      try {
+        const d    = await API.getDisability(id);
+        const lang = localStorage.getItem(Config.KEYS.LANG) || "ar";
+        const name = lang === "ar" ? d.nameAr : d.nameEn;
+        const desc = lang === "ar" ? d.descriptionAr : d.descriptionEn;
+        const isVisual  = d.type === "visual";
+        const isHearing = d.type === "hearing";
+        const isMotor   = d.type === "motor";
+
+        if (isHearing) initHearing();
+
+        const featuresHtml = d.features && d.features.length ? `
+          <div class="card mt-4">
+            <h2 class="mb-4">${T("disability.features")}</h2>
+            <div class="feature-grid">
+              ${d.features.map(f => `
+                <div class="feature-item">
+                  <div class="feature-icon">${f.icon}</div>
+                  <span class="text-sm text-center">${lang === "ar" ? f.nameAr : f.nameEn}</span>
+                </div>`).join("")}
+            </div>
+          </div>` : "";
+
+        const zoomTool = `
+          <div class="tool-card mt-3">
+            <svg class="tool-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span style="font-size:.9rem;font-weight:600;flex:1">${lang === "ar" ? "حجم النص" : "Text Size"}</span>
+            <div class="zoom-controls">
+              <button class="zoom-btn" id="zoom-dec" onclick="changeZoom(-15)">A−</button>
+              <span class="zoom-value" id="zoom-value">100%</span>
+              <button class="zoom-btn" id="zoom-inc" onclick="changeZoom(+15)">A+</button>
+            </div>
+          </div>`;
+
+        const voiceTool = `
+          <div class="tool-card mt-3">
+            <svg class="tool-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <span style="font-size:.9rem;font-weight:600;flex:1">${lang === "ar" ? "الاستماع للمحتوى" : "Listen"}</span>
+            <button class="btn btn-primary btn-sm" onclick="speak('${name.replace(/'/g,"\\'")}. ${desc.replace(/'/g,"\\'")}')">
+              ${T("disability.voice_reading")}
+            </button>
+          </div>`;
+
+        const toolsHtml = (isVisual || isMotor) ? `
+          <div class="card mt-4">
+            <h2 class="mb-3">${lang === "ar" ? "أدوات إمكانية الوصول" : "Accessibility Tools"}</h2>
+            ${isVisual ? zoomTool : ""}
+            ${voiceTool}
+          </div>` : "";
+
+        root.innerHTML = `
+          <div class="fade-in">
+            <button class="back-btn" onclick="history.back()">← ${T("common.back")}</button>
+            <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <h1 class="text-primary">${name}</h1>
+              ${isVisual ? `<button class="btn btn-outline btn-sm" onclick="speak('${name.replace(/'/g,"\\'")}. ${desc.replace(/'/g,"\\'")}')">🔊 ${T("disability.voice_reading")}</button>` : ""}
+            </div>
+            <p class="text-muted text-lg">${desc}</p>
+            ${featuresHtml}
+            ${toolsHtml}
+            <div class="text-center mt-8">
+              <a href="/services.html"><button class="btn btn-primary btn-lg">${T("nav.services")}</button></a>
+            </div>
+          </div>`;
+
+        applyZoom();
+        if (isVisual) speak(name + ". " + desc);
+      } catch (err) {
+        root.innerHTML = `<p style="color:var(--destructive)">${T("common.error")}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>

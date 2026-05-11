@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>وصال — حجز</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="services" data-require-auth="true">
+  <div id="layout-header"></div>
+  <main class="main-content">
+    <div id="page-root"></div>
+  </main>
+  <div id="layout-bottom-nav"></div>
+  <div id="toast-container"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/translations.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    let selectedPay = null;
+
+    function showToast(msg, isError) {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = "toast" + (isError ? " error" : "");
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    function selectPay(method) {
+      selectedPay = method;
+      document.querySelectorAll(".pay-method").forEach(el => el.classList.remove("selected"));
+      document.getElementById("pay-" + method).classList.add("selected");
+      document.getElementById("pay-error").style.display = "none";
+      const cardFields = document.getElementById("card-fields");
+      if (cardFields) cardFields.style.display = method === "card" ? "block" : "none";
+      speak(method === "card"
+        ? (localStorage.getItem(Config.KEYS.LANG) === "ar" ? "اخترت الدفع بالبطاقة البنكية" : "You selected card payment")
+        : (localStorage.getItem(Config.KEYS.LANG) === "ar" ? "اخترت الدفع بـ Apple Pay" : "You selected Apple Pay"));
+    }
+
+    function formatCard(v) { return v.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim(); }
+    function formatExpiry(v) { const d=v.replace(/\D/g,"").slice(0,4); return d.length>=3?d.slice(0,2)+"/"+d.slice(2):d; }
+
+    window.addEventListener("layout-ready", async function () {
+      const root   = document.getElementById("page-root");
+      const params = new URLSearchParams(location.search);
+      const sid    = params.get("serviceId");
+      const oid    = params.get("optionId");
+      if (!sid || !oid) { location.href = "/services.html"; return; }
+
+      root.innerHTML = `<div class="skeleton" style="height:36px;width:200px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:100px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:260px;margin-bottom:16px"></div>`;
+
+      try {
+        const svc  = await API.getService(sid);
+        const lang = localStorage.getItem(Config.KEYS.LANG) || "ar";
+        const opt  = svc.options.find(o => o.id === Number(oid));
+        if (!opt) { location.href = "/services.html"; return; }
+        const sname = lang === "ar" ? svc.nameAr : svc.nameEn;
+        const oname = lang === "ar" ? opt.nameAr : opt.nameEn;
+        speak(`${lang === "ar" ? "صفحة الحجز." : "Booking page."} ${sname} — ${oname}. ${lang === "ar" ? "السعر" : "Price"} ${opt.priceBase} ${T("common.sar")}.`);
+
+        root.innerHTML = `
+          <div class="fade-in" style="max-width:600px;margin:0 auto">
+            <button class="back-btn" onclick="history.back()">← ${T("common.back")}</button>
+            <h1 class="text-primary mb-4">${T("book.title")}</h1>
+
+            <!-- Service summary -->
+            <div class="card mb-4" style="background:var(--primary-bg);border-color:hsl(153 55% 78%)">
+              <p class="text-xs text-muted mb-1">${T("book.service")}</p>
+              <h3>${sname} — ${oname}</h3>
+              <div class="flex justify-between items-center mt-2">
+                <span class="text-muted text-sm">${T("book.base_price")}</span>
+                <span style="font-size:1.6rem;font-weight:800;color:var(--primary)">${opt.priceBase} <span class="text-muted" style="font-size:.9rem;font-weight:400">${T("common.sar")}</span></span>
+              </div>
+            </div>
+
+            <!-- Details form -->
+            <form id="book-form" onsubmit="handleBook(event, ${svc.id}, ${opt.id}, '${opt.priceBase}')">
+              <div class="card mb-4">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="loc-from">${T("book.location_from")} <span class="required">*</span></label>
+                    <input id="loc-from" class="input" type="text" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="loc-to">${T("book.location_to")} <span class="required">*</span></label>
+                    <input id="loc-to" class="input" type="text" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="sched-date">${T("book.date")} <span class="required">*</span></label>
+                    <input id="sched-date" class="input" type="date" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="sched-time">${T("book.time")} <span class="required">*</span></label>
+                    <input id="sched-time" class="input" type="time" required>
+                  </div>
+                </div>
+                <div class="form-group mt-3">
+                  <label for="notes">${T("book.notes")} <span class="optional">${T("book.optional")}</span></label>
+                  <textarea id="notes" class="input" placeholder="${T("book.notes_placeholder")}"></textarea>
+                </div>
+              </div>
+
+              <!-- Payment -->
+              <div class="card mb-4" id="pay-card">
+                <h3 class="mb-3">${T("book.payment_method")}</h3>
+                <p id="pay-error" class="text-sm mb-2" style="color:var(--destructive);display:none">${T("book.payment_required")}</p>
+                <div class="pay-methods">
+                  <button type="button" id="pay-card" class="pay-method" onclick="selectPay('card')">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    ${T("book.payment_card")}
+                  </button>
+                  <button type="button" id="pay-applepay" class="pay-method pay-method-apple" onclick="selectPay('applepay')">
+                     Pay
+                  </button>
+                </div>
+                <div id="card-fields" class="card-fields space-y-4" style="display:none">
+                  <div class="form-group">
+                    <label>${lang === "ar" ? "رقم البطاقة" : "Card Number"} <span class="required">*</span></label>
+                    <input id="card-num" class="input" inputmode="numeric" placeholder="0000 0000 0000 0000" maxlength="19"
+                      oninput="this.value=formatCard(this.value)">
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label>${lang === "ar" ? "تاريخ الانتهاء" : "Expiry"} <span class="required">*</span></label>
+                      <input id="card-exp" class="input" inputmode="numeric" placeholder="MM/YY" maxlength="5"
+                        oninput="this.value=formatExpiry(this.value)">
+                    </div>
+                    <div class="form-group">
+                      <label>CVV <span class="required">*</span></label>
+                      <input id="card-cvv" class="input" inputmode="numeric" placeholder="000" maxlength="3"
+                        oninput="this.value=this.value.replace(/\D/g,'')">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>${lang === "ar" ? "الاسم على البطاقة" : "Name on Card"} <span class="required">*</span></label>
+                    <input id="card-name" class="input" type="text" placeholder="${lang === "ar" ? "كما يظهر على البطاقة" : "As on card"}">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" id="pay-btn" class="btn btn-primary btn-full btn-lg">
+                ${T("book.pay_now")} — ${opt.priceBase} ${T("common.sar")}
+              </button>
+            </form>
+          </div>`;
+      } catch {
+        root.innerHTML = `<p style="color:var(--destructive)">${T("common.error")}</p>`;
+      }
+    });
+
+    async function handleBook(e, svcId, optId, price) {
+      e.preventDefault();
+      if (!selectedPay) {
+        document.getElementById("pay-error").style.display = "block";
+        return;
+      }
+      if (selectedPay === "card") {
+        const num  = (document.getElementById("card-num").value  || "").replace(/\s/g,"");
+        const exp  = document.getElementById("card-exp").value  || "";
+        const cvv  = document.getElementById("card-cvv").value  || "";
+        const name = document.getElementById("card-name").value || "";
+        if (num.length < 16 || exp.length < 4 || cvv.length < 3 || !name.trim()) {
+          showToast(localStorage.getItem(Config.KEYS.LANG) === "ar" ? "يرجى إكمال بيانات البطاقة" : "Please complete card details", true);
+          return;
+        }
+      }
+      const btn = document.getElementById("pay-btn");
+      btn.disabled = true;
+      btn.textContent = T("book.payment_processing");
+
+      try {
+        const order = await API.createOrder({
+          serviceOptionId: optId,
+          locationFrom:    document.getElementById("loc-from").value   || null,
+          locationTo:      document.getElementById("loc-to").value     || null,
+          scheduledDate:   document.getElementById("sched-date").value || null,
+          scheduledTime:   document.getElementById("sched-time").value || null,
+          notes:           document.getElementById("notes").value       || null,
+          additionalFee:   null,
+        });
+        try { await API.confirmOrder(order.id); } catch {}
+        location.href = "/order-detail.html?id=" + order.id;
+      } catch (err) {
+        showToast(err.message || T("common.error"), true);
+        btn.disabled = false;
+        btn.textContent = T("book.pay_now") + " — " + price + " " + T("common.sar");
+      }
+    }
+  </script>
+</body>
+</html>

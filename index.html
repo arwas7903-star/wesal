@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>وصال</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="home">
+  <div id="layout-header"></div>
+
+  <main class="main-content">
+    <div id="page-root"></div>
+  </main>
+
+  <div id="layout-bottom-nav"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/translations.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+
+  <script>
+    window.addEventListener("layout-ready", function () {
+      document.getElementById("page-root").innerHTML = `
+        <div class="home-hero fade-in">
+          <h1 class="home-title">${T("app.name")}</h1>
+          <p class="home-tagline">${T("app.tagline")}</p>
+          <a href="/login.html">
+            <button class="btn btn-primary btn-lg" onclick="speak(T('app.voice_welcome'))">
+              ${T("app.get_started")}
+            </button>
+          </a>
+        </div>`;
+      speak(T("app.voice_welcome"));
+    });
+  </script>
+</body>
+</html>
